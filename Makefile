@@ -23,7 +23,7 @@ tidy: ## Add missing and remove unused modules
 	go mod tidy -v
 
 test: ## Execute test cases and produce coverage reports
-ifeq ($(MAKECMDGOALS), ci)
+ifeq ($MAKECMDGOALS, ci)
 	go test -v -coverpkg=./... -coverprofile=coverage.out -json ./... > test-report.json || (cat test-report.json; exit 1)
 else
 	go test -v -coverpkg=./... -coverprofile=coverage.out ./...
