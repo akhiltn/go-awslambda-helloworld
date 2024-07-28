@@ -1,7 +1,7 @@
 variable "AWS_DEFAULT_REGION" {
   description = "The AWS region to deploy resources in"
   type        = string
-  default     = "ap-south-1"  # or any default region you prefer
+  default     = "ap-south-1" # or any default region you prefer
 }
 
 variable "AWS_SECRET_ACCESS_KEY" {

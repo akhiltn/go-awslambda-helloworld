@@ -5,23 +5,70 @@ locals {
   archive_path = "dist/${local.app-name}.zip"
 }
 
+resource "aws_iam_role" "api_gateway_role" {
+  name = "api_gateway_role"
 
-// create the lambda function from zip file
-resource "aws_lambda_function" "function" {
-  function_name    = "app-${local.app-name}"
-  description      = "My first hello world function"
-  role             = aws_iam_role.lambda.arn
-  handler          = local.binary_name
-  memory_size      = 128
-  filename         = local.archive_path
-  source_code_hash = filebase64sha256(local.archive_path)
-
-  runtime       = "provided.al2023"
-  architectures = ["x86_64"]
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
-// create log group in cloudwatch to gather logs of our lambda function
-resource "aws_cloudwatch_log_group" "log_group" {
-  name              = "/aws/lambda/${aws_lambda_function.function.function_name}"
-  retention_in_days = 3
+resource "aws_iam_policy" "lambda_invoke_policy" {
+  name        = "lambda_invoke_policy"
+  description = "Policy to allow API Gateway to invoke Lambda function"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = "lambda:InvokeFunction"
+        Effect   = "Allow"
+        Resource = module.lambda_function.lambda_function_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_lambda_invoke_policy" {
+  role       = aws_iam_role.api_gateway_role.name
+  policy_arn = aws_iam_policy.lambda_invoke_policy.arn
+}
+
+module "lambda_function" {
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "7.7.1"
+
+  function_name          = "app-${local.app-name}"
+  handler                = local.binary_name
+  runtime                = "provided.al2023"
+  create_package         = false
+  local_existing_package = local.archive_path
+}
+
+module "api_gateway" {
+  source  = "terraform-aws-modules/apigateway-v2/aws"
+  version = "5.1.0"
+
+  name               = "api-${local.app-name}"
+  protocol_type      = "HTTP"
+  create_domain_name = false # Disable Route 53 configuration
+
+  routes = {
+    "ANY /helloworld" = {
+      integration = {
+        uri                    = module.lambda_function.lambda_function_arn
+        payload_format_version = "2.0"
+        credentials_arn        = aws_iam_role.api_gateway_role.arn
+      }
+    }
+  }
 }
