@@ -9,6 +9,9 @@
 *.dylib
 bin
 dist
+terraform/dist
+terraform/.terraform.lock.hcl
+*.terraform
 
 # Test binary, built with `go test -c`
 *.test

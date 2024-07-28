@@ -5,13 +5,14 @@ all: clean tidy fmt test build package
 
 build: ## The binaries are all renamed 'bootstrap' as is required by AWS AL2 runtime
 	$(eval GOOS := linux)
-	$(eval GOARCH := amd64)
+	$(eval GOARCH := x86_64)
 	go build -v --tags lambda.norpc -o ${BUILD_DIR}/ ./cmd/...
 	find ${BUILD_DIR}/ -mindepth 1 -maxdepth 1 -type f -exec sh -c "mv -f {} bootstrap && mkdir -p {} && mv -f bootstrap {}/bootstrap" \;
 
 clean: ## Remove all build and test artifacts
 	rm -rf ${BUILD_DIR}
 	rm -rf dist
+	rm -rf terraform/dist
 	rm -f test-report.json
 	rm -f coverage.out
 
@@ -35,6 +36,7 @@ cover: test ## Execute test cases and show coverage in the browser
 package: ## Create lambda deployable zip packages for each lambda
 	@mkdir -p dist
 	find bin/ -mindepth 1 -maxdepth 1 -type d -exec zip -j '{}.zip' '{}/bootstrap' \; && mv ${BUILD_DIR}/*.zip dist/;
+	@mv dist/ terraform/
 
 help: ## Show make target documentation
 	@awk -F ':|##' '/^[^\t].+?:.##/ {\
